@@ -1,0 +1,65 @@
+/* 
+    Document   : awpp.css
+    Created on : 17-Feb-2013, 19:04:36
+    Author     : kwisatz
+    Description:
+        Purpose of the stylesheet follows.
+*/
+
+	.awpp_placemark	{
+		margin: 0 !important;
+		font-size: medium !important;
+		line-height: normal !important;
+		color: black !important;
+	}
+		
+	.awpp_placemark h3 {}
+			margin: 0 !important;
+			padding: 5px 0;
+			font-size: medium !important;
+			line-height: normal !important;
+			font-weight: normal !important;
+		}
+		
+	.awpp_placemark div {
+			margin: 0 !important;
+		}
+	
+	#awpp-map-dom-element img {
+		width: auto !important;
+		max-width: none !important;
+		background: none !important;
+		border-width: 0;
+		padding: 0;
+		margin: 0;
+		-webkit-box-shadow: none;
+		-moz-box-shadow: none;
+		box-shadow: none;
+	}
+	
+	#awpp-map-dom-element #content {
+            width: auto;
+            height: auto;
+            overflow: auto;
+        }
+        
+        #awpp_addresses {
+            float:left;
+        }
+     
+        
+        .awpp_heading {
+            font-weight:bold;
+            padding-top: 10px;
+            padding-bottom:3px;
+        }
+        
+        .awpp_address {
+            float:left;
+            padding-left:1em;
+        }
+        
+        .awpp_photo_block {
+            float:left;
+            padding-left:10px;
+        }
