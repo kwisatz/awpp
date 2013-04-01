@@ -1,17 +1,27 @@
 <?php
 
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 /**
  * Description of AWPP_Settings
  *
  * @author kwisatz
+ * Plugin Name: Annuaire Client
+ * Plugin URI: 
+ * Description: Retrieves configurable entries from annuaire.youth.lu and displays them in various formats
+ * Version: 0.1.0
+ * Author: David Raison
+ * Author URI: http://david.raison.lu
+ * License: GPL3
  */
+
 class AWPP_Settings {
     
+    public function __construct(){
+        // nothing yet
+    }
+    
+    public function add_menu(){
+        add_options_page('Annuaire Client Settings', 'Annuaire Client', 'manage_options', 'awpp', array('AWPP_Settings', 'plugin_settings_page'));
+    }
     
     public function admin_init(){
         register_setting('awpp-group', 'awpp_options');

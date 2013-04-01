@@ -13,24 +13,21 @@
 if( $_SERVER['SCRIPT_FILENAME'] == __FILE__ )
     die( 'Access denied.' );
 
-
-define('WP_DEBUG', true);
-
 require_once( dirname(__FILE__) . '/settings.php' );
+require_once( dirname(__FILE__) . '/widget.php' );
 
 /**
  * Description of awpp
  *
  * @author kwisatz
  */
-class Awpp {
-    
-    const PREFIX = 'awpp';
-    
+class AWPP_Init {
+   
+       
     public function __construct(){
         // Admin menu
         add_action('admin_init', array( 'AWPP_Settings', 'admin_init'));
-        add_action('admin_menu', array( &$this, 'add_menu'));
+        add_action('admin_menu', array( 'AWPP_Settings', 'add_menu'));
         
         // Always? Cf. callback function comment
         //add_action('wp_enqueue_scripts', array( &$this, 'loadResources'), 11);    // that action doesn't seem to work
@@ -38,11 +35,12 @@ class Awpp {
         add_action('wp_head', array( &$this, 'outputHead' ) );
         
         // Widget
-        add_action('widgets_init', array(&$this, 'register_awpp_widget'));
+        add_action('widgets_init', array('AWPP_Widget', 'register_awpp_widget'));
         
         // Shortcodes http://codex.wordpress.org/Shortcode_API
-        add_shortcode( 'annuaire', array(&$this, 'create_annuaire_list') ); 
-        add_shortcode( 'annuaire-map', array( &$this, 'create_annuaire_map') );
+        $awpp_sc = new AWPP_Shortcode;
+        add_shortcode( 'annuaire', array( $awpp_sc, 'create_annuaire_list') ); 
+        add_shortcode( 'annuaire-map', array( $awpp_sc, 'create_annuaire_map') );
     }
     
     public function activate(){
@@ -57,13 +55,56 @@ class Awpp {
         print('<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />');
     }
     
+     /**
+     * Register and load javascript and stylesheet information
+     * @link http://codex.wordpress.org/Function_Reference/wp_register_script
+     */
+    public function loadResources() {
+        wp_register_script(
+                'googleMapsAPI',    // handle
+                'http'. ( is_ssl() ? 's' : '' ) .'://maps.google.com/maps/api/js?key=AIzaSyD2s8HfAbcc2uaoZ1Nuf8zSwOV9sg5kONI&sensor=false', // src
+                array(),            // deps
+                false,              // ver
+                true                // in_footer
+        );
+        wp_register_script(
+                'awppScript',                       // handle
+                plugins_url('awpp.js', __FILE__),   // src
+                array( 'googleMapsAPI', 'jquery' ),             // deps
+                false,                              // ver
+                true                                // in_footer
+        );
+        wp_register_style(
+                'awppStyle',    // handle
+                plugins_url('awpp.css', __FILE__),         // src
+                array(),            // deps
+                false,              // ver
+                'all'               // media
+        );
+        
+        // TODO only load when shortcode has been parsed
+        wp_enqueue_script( 'googleMapsAPI' );
+        wp_enqueue_script( 'awppScript' );
+        
+        wp_enqueue_style( 'awppStyle' );
+    }
+    
+}
+
+class AWPP_Shortcode {
+    
+    const PREFIX = 'awpp';
+    
+    public function __construct(){
+        
+    }
      /*
      * [annuaire-map] shortcode with region, type and content parameters
      */
     public function create_annuaire_map( $attributes ){
         $options = get_option('awpp_options');
         $geoData = null;
-        
+                       
         extract(
                 shortcode_atts( 
                         array( 
@@ -105,15 +146,22 @@ class Awpp {
                             'map' => false,
                             'width' => $options['map_width'],
                             'height' => $options['map_height'],
-                            'center' => $options['map_center']
+                            'center' => $options['map_center'],
+                            'photos' => true,
+                            'limit' => 100
                         ),
                 $attributes )
         );
         
         $data = $this->_getDataFromServer( $region, $type, $content );
         $output = '<div class="wrap"><div id="awpp_addresses">';
-            
+        $count = 0;    
+        
         foreach( $data as $entry ) {
+                        
+            if( ++$count > $limit ) {
+                continue;
+            }
                 
                 $title = strip_tags( $entry->titre );
                     
@@ -128,8 +176,14 @@ class Awpp {
                    $output .= ( $entry->fax )  ? '<br/>Fax: ' . $entry->fax : '';
                    $output .= ( $entry->link ) ? '<br/><a href="' . $entry->link . '" target="_blank">Homepage</a>' : '';
                 $output .= '</div>';
-                                         
-                if( is_array( $entry->photo ) && !empty( $entry->photo[0] ) ) {
+                
+                /*
+                 * Only display photos if 
+                 * 1) they have been requested, 
+                 * 2) there is an array of photos and
+                 * 3) the first element isn't empty
+                 */
+                if( $photos && is_array( $entry->photo ) && !empty( $entry->photo[0] ) ) {
                     $options = get_option('awpp_options');
                     $photo = trim( strstr( $entry->photo[0], 'http') );
                     $output .= '<div class="awpp_photo_block">'
@@ -246,41 +300,7 @@ class Awpp {
          return $placemarks;
     }
     
-    /**
-     * Register and load javascript and stylesheet information
-     * @link http://codex.wordpress.org/Function_Reference/wp_register_script
-     */
-    public function loadResources() {
-        wp_register_script(
-                'googleMapsAPI',    // handle
-                'http'. ( is_ssl() ? 's' : '' ) .'://maps.google.com/maps/api/js?key=AIzaSyD2s8HfAbcc2uaoZ1Nuf8zSwOV9sg5kONI&sensor=false', // src
-                array(),            // deps
-                false,              // ver
-                true                // in_footer
-        );
-        wp_register_script(
-                'awppScript',                       // handle
-                plugins_url('awpp.js', __FILE__),   // src
-                array( 'googleMapsAPI', 'jquery' ),             // deps
-                false,                              // ver
-                true                                // in_footer
-        );
-        wp_register_style(
-                'awppStyle',    // handle
-                plugins_url('awpp.css', __FILE__),         // src
-                array(),            // deps
-                false,              // ver
-                'all'               // media
-        );
-        
-        // TODO only load when shortcode has been parsed
-        wp_enqueue_script( 'googleMapsAPI' );
-        wp_enqueue_script( 'awppScript' );
-        
-        wp_enqueue_style( 'awppStyle' );
-    }
-      
-    private function _googleGeocode( $address ) {
+   private function _googleGeocode( $address ) {
         $geocodeResponse = wp_remote_get( 
                 sprintf( 'http://maps.googleapis.com/maps/api/geocode/json?address=%s&sensor=false',
                         str_replace( ' ', '+', $address ) 
@@ -320,65 +340,13 @@ class Awpp {
         return array( 'latitude' => $coordinates->results[ 0 ]->geometry->location->lat,
             'longitude' => $coordinates->results[ 0 ]->geometry->location->lng );
     }
-    
-    /**
-     *  Register the widget class
-     */
-    public function register_awpp_widget(){
-        register_widget('Awpp_Widget');
-    }    
-   
-    public function add_menu(){
-        add_options_page('Annuaire Client Settings', 'Annuaire Client', 'manage_options', 'awpp', array('AWPP_Settings', 'plugin_settings_page'));
-    }
 }
 
-class Awpp_Widget extends WP_Widget {
+if( class_exists( 'AWPP_Init' ) ){
+    register_activation_hook(__FILE__, array('AWPP_Init', 'activate') );
+    register_deactivation_hook(__FILE__, array('AWPP_Init', 'deactivate') );
     
-    public function __construct() {
-        parent::__construct(
-                'awpp_widget',  // Base ID
-                'Awpp Widget',  // Name
-                array('description' => __('Awpp widget') )  // Args
-        );
-    }
-    
-    public function form( $instance ){
-        if ( isset( $instance[ 'title' ] ) ) {
-            $title = $instance[ 'title' ];
-	} else {
-            $title = __( 'New title', 'text_domain' );
-	}
-        print('<p><label for="' . $this->get_field_id('title') . '"' . _e( "Title") . '</label>');
-        print('<input class="widefat" id="' . $this->get_field_id( 'title' ) 
-                . '" name="' . $this->get_field_name( 'title' ) 
-                . '" type="text" value="' . esc_attr( $title ) . '"/></p>');
-    }
-    
-    public function update( $new_instance, $old_instance ){
-        $instance = array();
-	$instance['title'] = strip_tags( $new_instance['title'] );
-	return $instance;
-    }
-    
-    public function widget( $args, $instance ){
-        extract( $args );
-	$title = apply_filters( 'widget_title', $instance['title'] );
-	echo $before_widget;
-	if ( ! empty( $title ) )
-		echo $before_title . $title . $after_title;
-	echo __( 'Hello, World!', 'text_domain' );
-	echo $after_widget;
-    }
-
-
-}
-
-if(class_exists( 'awpp' ) ){
-    register_activation_hook(__FILE__, array('Awpp', 'activate') );
-    register_deactivation_hook(__FILE__, array('Awpp', 'deactivate') );
-    
-    $awpp = new Awpp;
+    $awpp = new AWPP_Init;
     
 }
 
