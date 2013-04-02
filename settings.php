@@ -15,8 +15,10 @@
 
 class AWPP_Settings {
     
+    private $_options;
+    
     public function __construct(){
-        // nothing yet
+        $this->_options = get_option('awpp_options');
     }
     
     public function add_menu(){
@@ -25,13 +27,16 @@ class AWPP_Settings {
     
     public function admin_init(){
         register_setting('awpp-group', 'awpp_options');
-        add_settings_section('awpp_main', 'Main Settings', array(&$this, 'awpp_section_text'), 'awpp');
-        add_settings_field('awpp_photo_width', 'Default maximum photo width (px)', array( 'AWPP_Settings', 'awpp_photo_width_input'), 'awpp', 'awpp_main');
+        add_settings_section('awpp_main', 'Main Settings', array( $this, 'awpp_section_text'), 'awpp');
+        add_settings_field('awpp_photo_width', 'Default maximum photo width (px)', array( $this, 'awpp_photo_width_input'), 'awpp', 'awpp_main');
                 
-        add_settings_section('awpp_map', 'Map Settings', array(&$this, 'awpp_section_map_text'), 'awpp');
-        add_settings_field('awpp_map_width', 'Default map width (px)', array( 'AWPP_Settings', 'awpp_map_width_input'), 'awpp', 'awpp_map');
-        add_settings_field('awpp_map_height', 'Default map height (px)', array( 'AWPP_Settings', 'awpp_map_height_input'), 'awpp', 'awpp_map');
-        add_settings_field('awpp_map_center', 'Center map here', array( 'AWPP_Settings', 'awpp_map_center_input'), 'awpp', 'awpp_map');
+        add_settings_section('awpp_map', 'Map Settings', array($this, 'awpp_section_map_text'), 'awpp');
+        add_settings_field('awpp_map_width', 'Default map width (px)', array( $this, 'awpp_map_width_input'), 'awpp', 'awpp_map');
+        add_settings_field('awpp_map_height', 'Default map height (px)', array( $this, 'awpp_map_height_input'), 'awpp', 'awpp_map');
+        add_settings_field('awpp_map_center', 'Center map here', array( $this, 'awpp_map_center_input'), 'awpp', 'awpp_map');
+        
+        add_settings_section('awpp_debug', 'Debugging', array( $this, 'awpp_section_debug_text'), 'awpp');
+        add_settings_field('awpp_debug_enable', 'Enable debugging', array( $this, 'awpp_debug_checkbox'), 'awpp', 'awpp_debug');
     }
     
     public function awpp_section_text(){
@@ -42,32 +47,39 @@ class AWPP_Settings {
         print('<p>Define your default map settings here.</p>');
     }
     
+    public function awpp_section_debug_text() {
+        print('<p>If you enable debugging, AWPP will output debugging information on the pages where you use shortcodes or widgets.</p>');
+    }
+    
+    public function awpp_debug_checkbox(){
+        $checked = ( $this->_options['debug_enable'] ) ? 'checked="checked"' : '';
+        print('<input type="checkbox" name="awpp_options[debug_enable]"'
+                . 'id="awpp_debug_enable_checkbox"'
+                . 'value="1" ' . $checked . '/>');
+    }
+    
     public function awpp_photo_width_input(){
-        $options = get_option('awpp_options');
         print('<input type="number" step="10" min="0" id="awpp_photo_width_input"'
                 . 'name="awpp_options[photo_width]" size="40" class="small-text"'
-                . 'value="' . $options['photo_width'] . '"/>');
+                . 'value="' . $this->_options['photo_width'] . '"/>');
     }
     
     public function awpp_map_width_input(){
-        $options = get_option('awpp_options');
         print('<input type="number" step="10" min="0" id="awpp_map_width_input"'
                 . 'name="awpp_options[map_width]" size="40" class="small-text"'
-                . 'value="' . $options['map_width'] . '"/>');
+                . 'value="' . $this->_options['map_width'] . '"/>');
     }
     
     public function awpp_map_height_input(){
-        $options = get_option('awpp_options');
         print('<input type="number" step="10" min="0" id="awpp_map_height_input"'
                 . 'name="awpp_options[map_height]" size="40" class="small-text"'
-                . 'value="' . $options['map_height'] . '"/>');
+                . 'value="' . $this->_options['map_height'] . '"/>');
     }
     
     public function awpp_map_center_input(){
-        $options = get_option('awpp_options');
         print('<input type="text" step="10" min="0" id="awpp_map_center_input"'
                 . 'name="awpp_options[map_center]" size="40" class="medium-text"'
-                . 'value="' . $options['map_center'] . '"/>');
+                . 'value="' . $this->_options['map_center'] . '"/>');
     }
     
     /*

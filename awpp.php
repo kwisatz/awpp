@@ -25,9 +25,10 @@ class AWPP_Init {
    
        
     public function __construct(){
-        // Admin menu
-        add_action('admin_init', array( 'AWPP_Settings', 'admin_init'));
-        add_action('admin_menu', array( 'AWPP_Settings', 'add_menu'));
+        // Admin menu id built and populated in AWPP_Settings
+        $awpps = new AWPP_Settings();
+        add_action('admin_init', array( $awpps, 'admin_init'));
+        add_action('admin_menu', array( $awpps, 'add_menu'));
         
         // Always? Cf. callback function comment
         //add_action('wp_enqueue_scripts', array( &$this, 'loadResources'), 11);    // that action doesn't seem to work
@@ -94,15 +95,18 @@ class AWPP_Init {
 class AWPP_Shortcode {
     
     const PREFIX = 'awpp';
+    private $_options;
+    private $_debug;
     
     public function __construct(){
+        $this->_options = get_option('awpp_options');
+        $this->_debug = $this->_options['debug_enable'];
         
     }
      /*
      * [annuaire-map] shortcode with region, type and content parameters
      */
     public function create_annuaire_map( $attributes ){
-        $options = get_option('awpp_options');
         $geoData = null;
                        
         extract(
@@ -111,9 +115,9 @@ class AWPP_Shortcode {
                             'region' => 'north',
                             'type' => 1,
                             'content' => 'structure',
-                            'width' => $options['map_width'],
-                            'height' => $options['map_height'],
-                            'center' => $options['map_center']
+                            'width' => $this->_options['map_width'],
+                            'height' => $this->_options['map_height'],
+                            'center' => $this->_options['map_center']
                         ),
                 $attributes )
         );
@@ -134,7 +138,6 @@ class AWPP_Shortcode {
      * [annuaire] shortcode with region, type and content parameters
      */
     public function create_annuaire_list( $attributes ){
-        $options = get_option('awpp_options');
         $geoData = null;
         
         extract(
@@ -144,9 +147,9 @@ class AWPP_Shortcode {
                             'type' => 1,
                             'content' => 'structure',
                             'map' => false,
-                            'width' => $options['map_width'],
-                            'height' => $options['map_height'],
-                            'center' => $options['map_center'],
+                            'width' => $this->_options['map_width'],
+                            'height' => $this->_options['map_height'],
+                            'center' => $this->_options['map_center'],
                             'photos' => true,
                             'limit' => 100
                         ),
@@ -242,7 +245,7 @@ class AWPP_Shortcode {
      * Embedd the DOM element that will be replaced by the actual map
      */
     private function _displayMap( $geoData, $center, $width, $height ){ 
-        if ( empty( $geoData ) ) {
+        if ( $this->_debug && empty( $geoData ) ) {
             return sprintf('Something went incredibly wrong: No geodata received');
         }
         
@@ -306,10 +309,10 @@ class AWPP_Shortcode {
                         str_replace( ' ', '+', $address ) 
                         )
                 );
-        if ( is_wp_error( $geocodeResponse )) {
+        if ( $this->_debug && is_wp_error( $geocodeResponse )) {
             print('Something went wrong:' . $geocodeResponse->get_error_message());
         }
-        if( $geocodeResponse[ 'response' ][ 'code' ] != 200 ) {
+        if( $this->_debug && $geocodeResponse[ 'response' ][ 'code' ] != 200 ) {
             printf(
                __( '<p>%s geocode error: %d %s</p> <p>Response: %s</p>', self::PREFIX ),
                self::PREFIX,
@@ -322,17 +325,21 @@ class AWPP_Shortcode {
         
         // Else decode response and handle geocoding related errors
         $coordinates = json_decode( $geocodeResponse['body'] );
-        if( json_last_error() != JSON_ERROR_NONE ) {
+        if( $this->_debug && json_last_error() != JSON_ERROR_NONE ) {
             print('Did not get valid json response');
         }
         
-        if( isset( $coordinates->status ) && $coordinates->status == 'REQUEST_DENIED' ) {
+        if( $this->_debug && isset( $coordinates->status ) && $coordinates->status == 'REQUEST_DENIED' ) {
             printf( __( '%s geocode error: Request Denied.', self::PREFIX), self::PREFIX );
             return false;
         }
         
-        if( !isset( $coordinates->results ) || empty( $coordinates->results ) ) {
-            print( __( "That address couldn't be geocoded, please make sure that it's correct.", self::PREFIX ) );
+        if( ( $this->_debug && !isset( $coordinates->results ) ) || ($this->_debug && empty( $coordinates->results ) ) ) {
+            printf( 
+                    __( "%s geocode error: The address (%s) couldn't be geocoded, please make sure that it's correct." ),
+                    self::PREFIX,
+                    $address 
+                    );
             return false;
         }
         
