@@ -304,45 +304,53 @@ class AWPP_Shortcode {
     }
     
    private function _googleGeocode( $address ) {
-        $geocodeResponse = wp_remote_get( 
-                sprintf( 'http://maps.googleapis.com/maps/api/geocode/json?address=%s&sensor=false',
-                        str_replace( ' ', '+', $address ) 
-                        )
-                );
-        if ( $this->_debug && is_wp_error( $geocodeResponse )) {
-            print('Something went wrong:' . $geocodeResponse->get_error_message());
-        }
-        if( $this->_debug && $geocodeResponse[ 'response' ][ 'code' ] != 200 ) {
-            printf(
-               __( '<p>%s geocode error: %d %s</p> <p>Response: %s</p>', self::PREFIX ),
-               self::PREFIX,
-               $geocodeResponse[ 'response' ][ 'code' ],
-               $geocodeResponse[ 'response' ][ 'message' ],
-               strip_tags( $geocodeResponse[ 'body' ] )
-               );
-            return false;
-        }
-        
+       $key = md5( $address );
+       
+       if( false === ( $geocodeResponse = get_transient( $key ) ) ){
+           $this->_debug && printf('Fetching data for address "%s" from google.<br/>', $address );
+           
+           $geocodeResponse = wp_remote_get( 
+                    sprintf( 'http://maps.googleapis.com/maps/api/geocode/json?address=%s&sensor=false',
+                            str_replace( ' ', '+', $address ) 
+                            )
+                    );
+            if ( $this->_debug && is_wp_error( $geocodeResponse )) {
+                print('Something went wrong:' . $geocodeResponse->get_error_message());
+            }
+            if( $this->_debug && $geocodeResponse[ 'response' ][ 'code' ] != 200 ) {
+                printf(
+                   __( '<p>%s geocode error: %d %s</p> <p>Response: %s</p>', self::PREFIX ),
+                   self::PREFIX,
+                   $geocodeResponse[ 'response' ][ 'code' ],
+                   $geocodeResponse[ 'response' ][ 'message' ],
+                   strip_tags( $geocodeResponse[ 'body' ] )
+                   );
+                return false;
+            }
+            
+            set_transient( $key, $geocodeResponse, 3600 * 24 * 180 );
+       }
+
         // Else decode response and handle geocoding related errors
         $coordinates = json_decode( $geocodeResponse['body'] );
         if( $this->_debug && json_last_error() != JSON_ERROR_NONE ) {
             print('Did not get valid json response');
         }
-        
+
         if( $this->_debug && isset( $coordinates->status ) && $coordinates->status == 'REQUEST_DENIED' ) {
-            printf( __( '%s geocode error: Request Denied.', self::PREFIX), self::PREFIX );
-            return false;
-        }
-        
-        if( ( $this->_debug && !isset( $coordinates->results ) ) || ($this->_debug && empty( $coordinates->results ) ) ) {
-            printf( 
-                    __( "%s geocode error: The address (%s) couldn't be geocoded, please make sure that it's correct." ),
-                    self::PREFIX,
-                    $address 
-                    );
-            return false;
-        }
-        
+           printf( __( '%s geocode error: Request Denied.', self::PREFIX), self::PREFIX );
+           return false;
+         }
+
+         if( ( $this->_debug && !isset( $coordinates->results ) ) || ($this->_debug && empty( $coordinates->results ) ) ) {
+             printf( 
+                     __( "%s geocode error: The address (%s) couldn't be geocoded, please make sure that it's correct." ),
+                     self::PREFIX,
+                     $address 
+                     );
+             return false;
+         }
+               
         // If no errors were encountered, we can go on
         return array( 'latitude' => $coordinates->results[ 0 ]->geometry->location->lat,
             'longitude' => $coordinates->results[ 0 ]->geometry->location->lng );
@@ -354,8 +362,6 @@ if( class_exists( 'AWPP_Init' ) ){
     register_deactivation_hook(__FILE__, array('AWPP_Init', 'deactivate') );
     
     $awpp = new AWPP_Init;
-    
 }
-
 
 ?>
